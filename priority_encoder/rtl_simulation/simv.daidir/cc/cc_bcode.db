@@ -1,0 +1,2 @@
+sid pri_enc_tb
+bcid 0 0 WIDTH,1 CALL_ARG_VAL,2,0 WIDTH,4 PAD RET

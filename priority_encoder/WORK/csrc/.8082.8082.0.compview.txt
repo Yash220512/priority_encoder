@@ -1,0 +1,5 @@
+{"vcs1":{"timestamp_begin":1727780122.990955851, "rt":1.05, "ut":0.09, "st":0.06}}
+{"SNPS_VCS_INTERNAL_ROOT_START_TIME": 1727780122.593565433}
+{"VCS_COMP_START_TIME": 1727780122.593565433}
+{"VCS_COMP_END_TIME": 1727780124.072334460}
+{"VCS_USER_OPTIONS": "-full64 full_adder_tb.v -debug_access+all -lca -kdb"}

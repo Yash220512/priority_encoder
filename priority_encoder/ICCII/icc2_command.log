@@ -1,0 +1,935 @@
+#@ # 
+#@ # Running icc2_shell Version W-2024.09 for linux64 -- Aug 25, 2024
+#@ # Date:   Mon Jun  2 02:55:03 2025
+#@ # Run by: student@ict-chipin.sot.pdpu.ac.in
+#@ 
+
+set PDK_PATH ./../ref
+create_lib -ref_lib $PDK_PATH/lib/ndm/saed32rvt_c.ndm ysh_LIBB
+read_verilog {./../DC/results/pri_enc.mapped.v} -library ysh_LIbB -design pri_enc -top pri_enc
+read_verilog {./../DC/results/pri_enc.mapped.v} -library ysh_LIBB -design pri_enc -top pri_enc
+start_gui
+gui_set_pref_value -category {SelectByNamePalette} -key {ObjectType} -value {Logical Cells}
+link_block
+win_set_filter -visible -class cell -filter {assembly_die_margin bridge clock_margin filler_allowed_margin hard_macro_margin hard_margin route_blockage_margin seal_ring_margin soft_margin substrate} -layer {}
+win_set_filter -visible -class pseudo_bump -filter {deleted} -layer {}
+win_set_filter -visible -class pseudo_tsv -filter {deleted} -layer {}
+win_set_filter -visible -class placement_blockage -filter {wiring} -layer {0-82}
+win_set_filter -expand_cell_types {soft_macro  }
+win_set_select_class -visible {cell port bound routing_blockage shaping_blockage pg_region bump_region pseudo_bump pseudo_tsv pin_blockage block_shielding topology_node topology_edge topology_repeater annotation_shape core_area die_area edit_group shape via terminal fill_cell metal_area metal_area_hole placement_blockage }
+win_set_filter -class cell -filter {array assembly_die_margin bridge clock_margin filler_allowed_margin hard_macro_margin hard_margin route_blockage_margin seal_ring_margin soft_margin substrate} -layer {}
+win_set_filter -class pseudo_bump -filter {deleted} -layer {}
+win_set_filter -class pseudo_tsv -filter {deleted} -layer {}
+win_set_filter -class placement_blockage -filter {wiring} -layer {0-82}
+win_set_select_class {cell port bound routing_blockage shaping_blockage pg_region bump_region pseudo_bump pseudo_tsv pin_blockage topology_node topology_edge topology_repeater annotation_shape edit_group shape via metal_area metal_area_hole placement_blockage }
+win_select_objects -slct_targets global -at {3.837 1.266} -radius 0.0043
+initialize_floorplan -shape L -core_offset 2 -coincident_boundary true
+set_individual_pin_constraints -ports [get_ports {A B}] -sides 6
+place_pins -self
+create_placement -floorplan  -effort medium
+save_block -as new-one
+save_lib
+#######################################################################################
+## Power-planning - To build Power Delivery Network (PDN)
+## #####################################################################################
+#
+############################################################################
+### Step 1: to_create power/ground nets and to_connect power/ground nets :-
+##############################################################################
+#to create power nets
+create_net -power {VDD}
+create_net -ground {VSS}
+## to connect power/ground_nets
+#
+connect_pg_net -all_blocks -automatic
+#################################################################################
+### step 2: to create power and ground ring patterns
+#################################################################################
+###
+#scenario1:
+create_pg_ring_pattern core_ring_pattern -horizontal_layer M7 -horizontal_width .4 -horizontal_spacing .3 -vertical_layer M8 -vertical_width .4 -vertical_spacing .3
+set_pg_strategy core_power_ring -core -pattern {{name : core_ring_pattern}{nets : {VDD VSS}}{offset : {.5 .5}}}
+compile_pg -strategies core_power_ring
+###############################################################################
+### step 3: to create pg mesh pattern
+################################################################################
+create_pg_mesh_pattern mesh -layers { {{vertical_layer: M6}{width: .34} {spacing: interleaving}{pitch: 5} {offset: .5}} {{horizontal_layer: M7}{width: .38} {spacing: interleaving} {pitch: 5} {offset: .5}} {{vertical_layer: M8}{width: .38} {spacing: interleaving}{pitch: 5} {offset: .5}}}
+set_pg_strategy core_mesh -pattern { {pattern:mesh} {nets: VDD VSS}} -core -extension {stop: innermost_ring}
+#set_pg_strategy core_mesh -pattern { {pattern:mesh} {nets: VDD VSS}} -core -extension {{{side: 1 2} {direction: L T} {stop: innermost_ring}}}
+compile_pg -strategies core_mesh
+###################################################
+###step 4 : to create std cell power rail pattern
+#######################################################
+create_pg_std_cell_conn_pattern std_cell_rail -layers {M1} -rail_width 0.06
+set_pg_strategy rail_strat -core -pattern {{name: std_cell_rail} {nets: VDD VSS} }
+compile_pg -strategies rail_strat
+#compile_pg
+##########################################################
+### step 5 : To save block and Save lib
+#############################################################
+## "save_block"  will save block as the deign name (full_adder.design) by default
+#
+save_block
+## "save_block -as <preferred name>" to save the block in user preferred name
+##
+## "save_lib" will save library as created already
+save_lib
+####mode for placement
+set mode1 "func"
+set corner1 "nom"
+set scenario1 "${mode1}::${corner1}"
+remove_modes -all; remove_corners -all; remove_scenarios -all
+create_mode $mode1
+create_corner $corner1
+create_scenario -name func::nom -mode func -corner nom
+current_mode func
+current_scenario func::nom
+source ./../CONSTRAINTS/full_adder.sdc
+set_dont_use [get_lib_cells */FADD*]
+set_dont_use [get_lib_cells */HADD*]
+set_dont_use [get_lib_cells */AO*]
+set_dont_use [get_lib_cells */OA*]
+set_dont_use [get_lib_cells */NAND*]
+set_dont_use [get_lib_cells */XOR*]
+#set_dont_use [get_lib_cells */NOR*]
+set_dont_use [get_lib_cells */XNOR*]
+set_dont_use [get_lib_cells */MUX*]
+set_dont_use [get_lib_cells */AND*]
+#set_dont_use [get_lib_cells */OR*]
+current_corner nom
+current_scenario func::nom
+set parasitic1 "p1"
+set tluplus_file$parasitic1 "$PDK_PATH/tech/star_rcxt/saed32nm_1p9m_Cmax.tluplus"
+set layer_map_file$parasitic1 "$PDK_PATH/tech/star_rcxt/saed32nm_tf_itf_tluplus.map"
+set parasitic2 "p2"
+set tluplus_file$parasitic2 "$PDK_PATH/tech/star_rcxt/saed32nm_1p9m_Cmin.tluplus"
+set layer_map_file$parasitic2 "$PDK_PATH/tech/star_rcxt/saed32nm_tf_itf_tluplus.map"
+read_parasitic_tech -tlup $tluplus_filep1 -layermap $layer_map_filep1 -name p1
+read_parasitic_tech -tlup $tluplus_filep2 -layermap $layer_map_filep2 -name p2
+set_parasitic_parameters -late_spec $parasitic1 -early_spec $parasitic2
+set_app_options -name place.coarse.continue_on_missing_scandef -value true
+place_pins -self
+place_opt
+config_flow
+redirect $::sh_dev_null { set_app_options -name opt.internal.current_block_utilization -value [report_utilization] }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+legalize_placement
+save_block -as full_adder_placement
+save_lib
+#####################################################
+#pre-clock sanity checks
+####################################################
+check_design -checks pre_clock_tree_stage
+suppress_message -force CMD-013
+redirect -file /dev/null { set previous_unified_check_report_format_enable [get_app_option_value -name da.common.unified_check_report_format] }
+redirect -file /dev/null { set_app_options -name da.common.unified_check_report_format -value false }
+suppress_message -force CMD-013
+suppress_message -force CMD-013; report_design_mismatch -check_design >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02031017.log
+suppress_message -force CMD-013; check_scan_chain >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02031017.log
+suppress_message -force CMD-013; check_mv_design >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02031017.log
+suppress_message -force CMD-013; check_legality >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02031017.log
+suppress_message -force CMD-013; check_timing >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02031017.log
+suppress_message -force CMD-013; check_clock_trees >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02031017.log
+suppress_message -force CMD-013; check_hier_design -stage pre_clock_tree >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02031017.log
+unsuppress_message CMD-013
+redirect -file /dev/null { set_app_options -name da.common.unified_check_report_format -value $previous_unified_check_report_format_enable }
+###################################################
+##        CTS using CCD  commands
+####################################################
+##
+##stage 1:
+##
+synthesize_clock_tree
+##stage 2:
+#
+set_app_options -name cts.optimize.enable_local_skew -value true
+set_app_options -name cts.compile.enable_local_skew -value true
+set_app_options -name cts.compile.enable_global_route -value false
+set_app_options -name clock_opt.flow.enable_ccd -value true
+clock_opt -to build_clock
+config_flow
+config_flow -stage cfinal_opto_prelude
+#stage 3:
+###
+#
+clock_opt -from route_clock -to route_clock
+config_flow
+config_flow -stage cfinal_opto_prelude
+set_app_options -as_user_default -list {route.global.global_route_topology_style 1}
+route_group -all_clock_nets -reuse_existing_global_route true
+set_app_options -as_user_default -list {route.global.global_route_topology_style 0}
+clock_opt
+config_flow
+config_flow -stage cfinal_opto_prelude
+###########################################################
+###  to report qor the respective CTS
+############################################################
+#
+#report_clock_qor
+#report_clock_qor -largest 2 -show_verbose_paths
+#report_clock_qor -largest 2 -show_verbose_paths > cts_ccd.rpt
+##########################################################
+#  to save the block
+########################################################
+save_block -as full_adder_cts_CCD
+save_lib
+gui_zoom -window [gui_get_current_window -types Layout -mru] -factor 0.5 -at_point {13.184 3.265}
+gui_zoom -window [gui_get_current_window -types Layout -mru] -factor 2 -at_point {14.182 3.452}
+#######################################################
+# set app options
+#########################################################
+#
+#global route
+set_app_options -name route.global.timing_driven -value true
+set_app_options -name route.global.crosstalk_driven -value false
+#track assignment
+set_app_options -name route.track.timing_driven -value true
+set_app_options -name route.track.crosstalk_driven -value true
+#
+#detail route
+set_app_options -name route.detail.timing_driven -value true
+set_app_options -name route.detail.save_after_iterations -value false
+set_app_options -name route.detail.force_max_number_iterations -value false
+set_app_options -name route.detail.antenna -value true
+set_app_options -name route.detail.antenna_fixing_preference -value use_diodes
+set_app_options -name route.detail.diode_libcell_names -value */ANTENNA_RVT
+#
+####################################
+#Atomic commands for route_auto
+###################################
+route_global
+#save_block route_global_database
+route_track
+#save_block route_track_database
+route_detail
+#save_block route_detail_database
+#route_auto
+#
+#
+#
+route_opt
+config_flow
+config_flow -stage cfinal_opto_prelude
+######################################
+# OUTPUTS
+#
+#
+write_verilog ./results/full_adder.routed.v
+write_sdc -output ./results/full_adder.routed.sdc
+write_parasitics -format spef -output ./results/full_adder_${scenario1}.spef
+#
+gui_zoom -window [gui_get_current_window -types Layout -mru] -factor 0.5 -at_point {12.518 8.338}
+gui_zoom -window [gui_get_current_window -types Layout -mru] -factor 0.5 -at_point {12.851 8.318}
+gui_zoom -window [gui_get_current_window -types Layout -mru] -factor 2 -at_point {13.475 8.359}
+gui_zoom -window [gui_get_current_window -types Layout -mru] -factor 2 -at_point {12.851 8.359}
+gui_zoom -window [gui_get_current_window -view] -full
+report_qor
+set PDK_PATH ./../ref
+create_lib -ref_lib $PDK_PATH/lib/ndm/saed32rvt_c.ndm ysh_LIBB11
+read_verilog {./../DC/results/pri_enc.mapped.v} -library ysh_LIBB11 -design pri_enc -top pri_enc
+link_block
+initialize_floorplan -shape L -core_offset 2 -coincident_boundary true
+set_individual_pin_constraints -ports [get_ports {A B}] -sides 6
+place_pins -self
+create_placement -floorplan  -effort medium
+save_block -as no_ADD
+save_lib
+report_timing
+#######################################################################################
+## Power-planning - To build Power Delivery Network (PDN)
+## #####################################################################################
+#
+############################################################################
+### Step 1: to_create power/ground nets and to_connect power/ground nets :-
+##############################################################################
+#to create power nets
+create_net -power {VDD}
+create_net -ground {VSS}
+## to connect power/ground_nets
+#
+connect_pg_net -all_blocks -automatic
+#################################################################################
+### step 2: to create power and ground ring patterns
+#################################################################################
+###
+#scenario1:
+create_pg_ring_pattern core_ring_pattern -horizontal_layer M7 -horizontal_width .4 -horizontal_spacing .3 -vertical_layer M8 -vertical_width .4 -vertical_spacing .3
+set_pg_strategy core_power_ring -core -pattern {{name : core_ring_pattern}{nets : {VDD VSS}}{offset : {.5 .5}}}
+compile_pg -strategies core_power_ring
+###############################################################################
+### step 3: to create pg mesh pattern
+################################################################################
+create_pg_mesh_pattern mesh -layers { {{vertical_layer: M6}{width: .34} {spacing: interleaving}{pitch: 5} {offset: .5}} {{horizontal_layer: M7}{width: .38} {spacing: interleaving} {pitch: 5} {offset: .5}} {{vertical_layer: M8}{width: .38} {spacing: interleaving}{pitch: 5} {offset: .5}}}
+set_pg_strategy core_mesh -pattern { {pattern:mesh} {nets: VDD VSS}} -core -extension {stop: innermost_ring}
+#set_pg_strategy core_mesh -pattern { {pattern:mesh} {nets: VDD VSS}} -core -extension {{{side: 1 2} {direction: L T} {stop: innermost_ring}}}
+compile_pg -strategies core_mesh
+###################################################
+###step 4 : to create std cell power rail pattern
+#######################################################
+create_pg_std_cell_conn_pattern std_cell_rail -layers {M1} -rail_width 0.06
+set_pg_strategy rail_strat -core -pattern {{name: std_cell_rail} {nets: VDD VSS} }
+compile_pg -strategies rail_strat
+#compile_pg
+##########################################################
+### step 5 : To save block and Save lib
+#############################################################
+## "save_block"  will save block as the deign name (full_adder.design) by default
+#
+save_block
+## "save_block -as <preferred name>" to save the block in user preferred name
+##
+## "save_lib" will save library as created already
+save_lib
+####mode for placement
+set mode1 "func"
+set corner1 "nom"
+set scenario1 "${mode1}::${corner1}"
+remove_modes -all; remove_corners -all; remove_scenarios -all
+create_mode $mode1
+create_corner $corner1
+create_scenario -name func::nom -mode func -corner nom
+current_mode func
+current_scenario func::nom
+source ./../CONSTRAINTS/full_adder.sdc
+set_dont_use [get_lib_cells */FADD*]
+set_dont_use [get_lib_cells */HADD*]
+set_dont_use [get_lib_cells */AO*]
+#set_dont_use [get_lib_cells */OA*]
+#set_dont_use [get_lib_cells */NAND*]
+set_dont_use [get_lib_cells */XOR*]
+#set_dont_use [get_lib_cells */NOR*]
+set_dont_use [get_lib_cells */XNOR*]
+set_dont_use [get_lib_cells */MUX*]
+#set_dont_use [get_lib_cells */AND*]
+#set_dont_use [get_lib_cells */OR*]
+current_corner nom
+current_scenario func::nom
+set parasitic1 "p1"
+set tluplus_file$parasitic1 "$PDK_PATH/tech/star_rcxt/saed32nm_1p9m_Cmax.tluplus"
+set layer_map_file$parasitic1 "$PDK_PATH/tech/star_rcxt/saed32nm_tf_itf_tluplus.map"
+set parasitic2 "p2"
+set tluplus_file$parasitic2 "$PDK_PATH/tech/star_rcxt/saed32nm_1p9m_Cmin.tluplus"
+set layer_map_file$parasitic2 "$PDK_PATH/tech/star_rcxt/saed32nm_tf_itf_tluplus.map"
+read_parasitic_tech -tlup $tluplus_filep1 -layermap $layer_map_filep1 -name p1
+read_parasitic_tech -tlup $tluplus_filep2 -layermap $layer_map_filep2 -name p2
+set_parasitic_parameters -late_spec $parasitic1 -early_spec $parasitic2
+set_app_options -name place.coarse.continue_on_missing_scandef -value true
+place_pins -self
+place_opt
+config_flow
+redirect $::sh_dev_null { set_app_options -name opt.internal.current_block_utilization -value [report_utilization] }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+legalize_placement
+save_block -as full_adder_placement
+save_lib
+report_timing
+#####################################################
+#pre-clock sanity checks
+####################################################
+check_design -checks pre_clock_tree_stage
+suppress_message -force CMD-013
+redirect -file /dev/null { set previous_unified_check_report_format_enable [get_app_option_value -name da.common.unified_check_report_format] }
+redirect -file /dev/null { set_app_options -name da.common.unified_check_report_format -value false }
+suppress_message -force CMD-013
+suppress_message -force CMD-013; report_design_mismatch -check_design >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045543.log
+suppress_message -force CMD-013; check_scan_chain >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045543.log
+suppress_message -force CMD-013; check_mv_design >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045543.log
+suppress_message -force CMD-013; check_legality >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045543.log
+suppress_message -force CMD-013; check_timing >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045543.log
+suppress_message -force CMD-013; check_clock_trees >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045543.log
+suppress_message -force CMD-013; check_hier_design -stage pre_clock_tree >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045543.log
+unsuppress_message CMD-013
+redirect -file /dev/null { set_app_options -name da.common.unified_check_report_format -value $previous_unified_check_report_format_enable }
+###################################################
+##        CTS using CCD  commands
+####################################################
+##
+##stage 1:
+##
+synthesize_clock_tree
+##stage 2:
+#
+set_app_options -name cts.optimize.enable_local_skew -value true
+set_app_options -name cts.compile.enable_local_skew -value true
+set_app_options -name cts.compile.enable_global_route -value false
+set_app_options -name clock_opt.flow.enable_ccd -value true
+clock_opt -to build_clock
+config_flow
+config_flow -stage cfinal_opto_prelude
+#stage 3:
+###
+#
+clock_opt -from route_clock -to route_clock
+config_flow
+config_flow -stage cfinal_opto_prelude
+set_app_options -as_user_default -list {route.global.global_route_topology_style 1}
+route_group -all_clock_nets -reuse_existing_global_route true
+set_app_options -as_user_default -list {route.global.global_route_topology_style 0}
+clock_opt
+config_flow
+config_flow -stage cfinal_opto_prelude
+###########################################################
+###  to report qor the respective CTS
+############################################################
+#
+#report_clock_qor
+#report_clock_qor -largest 2 -show_verbose_paths
+#report_clock_qor -largest 2 -show_verbose_paths > cts_ccd.rpt
+##########################################################
+#  to save the block
+########################################################
+save_block -as full_adder_cts_CCD
+save_lib
+gui_zoom -window [gui_get_current_window -types Layout -mru] -factor 0.5 -at_point {11.603 7.590}
+gui_zoom -window [gui_get_current_window -view] -full
+report_timing
+gui_zoom -window [gui_get_current_window -types Layout -mru] -factor 0.5 -at_point {7.153 5.406}
+gui_zoom -window [gui_get_current_window -types Layout -mru] -factor 2 -at_point {4.991 1.206}
+gui_zoom -window [gui_get_current_window -view] -full
+#####################################################
+#pre-clock sanity checks
+####################################################
+check_design -checks pre_clock_tree_stage
+suppress_message -force CMD-013
+redirect -file /dev/null { set previous_unified_check_report_format_enable [get_app_option_value -name da.common.unified_check_report_format] }
+redirect -file /dev/null { set_app_options -name da.common.unified_check_report_format -value false }
+suppress_message -force CMD-013
+suppress_message -force CMD-013; report_design_mismatch -check_design >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045949.log
+suppress_message -force CMD-013; check_scan_chain >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045949.log
+suppress_message -force CMD-013; check_mv_design >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045949.log
+suppress_message -force CMD-013; check_legality >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045949.log
+suppress_message -force CMD-013; check_timing >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045949.log
+suppress_message -force CMD-013; check_clock_trees >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045949.log
+suppress_message -force CMD-013; check_hier_design -stage pre_clock_tree >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02045949.log
+unsuppress_message CMD-013
+redirect -file /dev/null { set_app_options -name da.common.unified_check_report_format -value $previous_unified_check_report_format_enable }
+###################################################
+##        CTS using CCD  commands
+####################################################
+##
+##stage 1:
+##
+synthesize_clock_tree
+##stage 2:
+#
+set_app_options -name cts.optimize.enable_local_skew -value true
+set_app_options -name cts.compile.enable_local_skew -value true
+set_app_options -name cts.compile.enable_global_route -value false
+set_app_options -name clock_opt.flow.enable_ccd -value true
+clock_opt -to build_clock
+config_flow
+config_flow -stage cfinal_opto_prelude
+#stage 3:
+###
+#
+clock_opt -from route_clock -to route_clock
+config_flow
+config_flow -stage cfinal_opto_prelude
+set_app_options -as_user_default -list {route.global.global_route_topology_style 1}
+route_group -all_clock_nets -reuse_existing_global_route true
+set_app_options -as_user_default -list {route.global.global_route_topology_style 0}
+clock_opt
+config_flow
+config_flow -stage cfinal_opto_prelude
+###########################################################
+###  to report qor the respective CTS
+############################################################
+#
+#report_clock_qor
+#report_clock_qor -largest 2 -show_verbose_paths
+#report_clock_qor -largest 2 -show_verbose_paths > cts_ccd.rpt
+##########################################################
+#  to save the block
+########################################################
+save_block -as full_adder_cts_CCD
+save_lib
+open_block /home/student/RTL2GDSII/ICCII/ysh_LIBB11:full_adder_cts_CCD.design
+link_block
+open_block /home/student/RTL2GDSII/ICCII/ysh_LIBB11:no_ADD.design
+link_block
+#######################################################################################
+## Power-planning - To build Power Delivery Network (PDN)
+## #####################################################################################
+#
+############################################################################
+### Step 1: to_create power/ground nets and to_connect power/ground nets :-
+##############################################################################
+#to create power nets
+create_net -power {VDD}
+create_net -ground {VSS}
+## to connect power/ground_nets
+#
+connect_pg_net -all_blocks -automatic
+#################################################################################
+### step 2: to create power and ground ring patterns
+#################################################################################
+###
+#scenario1:
+create_pg_ring_pattern core_ring_pattern -horizontal_layer M7 -horizontal_width .4 -horizontal_spacing .3 -vertical_layer M8 -vertical_width .4 -vertical_spacing .3
+set_pg_strategy core_power_ring -core -pattern {{name : core_ring_pattern}{nets : {VDD VSS}}{offset : {.5 .5}}}
+compile_pg -strategies core_power_ring
+###############################################################################
+### step 3: to create pg mesh pattern
+################################################################################
+create_pg_mesh_pattern mesh -layers { {{vertical_layer: M6}{width: .34} {spacing: interleaving}{pitch: 5} {offset: .5}} {{horizontal_layer: M7}{width: .38} {spacing: interleaving} {pitch: 5} {offset: .5}} {{vertical_layer: M8}{width: .38} {spacing: interleaving}{pitch: 5} {offset: .5}}}
+set_pg_strategy core_mesh -pattern { {pattern:mesh} {nets: VDD VSS}} -core -extension {stop: innermost_ring}
+#set_pg_strategy core_mesh -pattern { {pattern:mesh} {nets: VDD VSS}} -core -extension {{{side: 1 2} {direction: L T} {stop: innermost_ring}}}
+compile_pg -strategies core_mesh
+###################################################
+###step 4 : to create std cell power rail pattern
+#######################################################
+create_pg_std_cell_conn_pattern std_cell_rail -layers {M1} -rail_width 0.06
+set_pg_strategy rail_strat -core -pattern {{name: std_cell_rail} {nets: VDD VSS} }
+compile_pg -strategies rail_strat
+#compile_pg
+##########################################################
+### step 5 : To save block and Save lib
+#############################################################
+## "save_block"  will save block as the deign name (full_adder.design) by default
+#
+## "save_block -as <preferred name>" to save the block in user preferred name
+##
+## "save_lib" will save library as created already
+####mode for placement
+set mode1 "func"
+set corner1 "nom"
+set scenario1 "${mode1}::${corner1}"
+remove_modes -all; remove_corners -all; remove_scenarios -all
+create_mode $mode1
+create_corner $corner1
+create_scenario -name func::nom -mode func -corner nom
+current_mode func
+current_scenario func::nom
+source ./../CONSTRAINTS/pri_enc.sdc
+set_dont_use [get_lib_cells */FADD*]
+set_dont_use [get_lib_cells */HADD*]
+set_dont_use [get_lib_cells */AO*]
+#set_dont_use [get_lib_cells */OA*]
+#set_dont_use [get_lib_cells */NAND*]
+set_dont_use [get_lib_cells */XOR*]
+#set_dont_use [get_lib_cells */NOR*]
+set_dont_use [get_lib_cells */XNOR*]
+set_dont_use [get_lib_cells */MUX*]
+#set_dont_use [get_lib_cells */AND*]
+#set_dont_use [get_lib_cells */OR*]
+current_corner nom
+current_scenario func::nom
+set parasitic1 "p1"
+set tluplus_file$parasitic1 "$PDK_PATH/tech/star_rcxt/saed32nm_1p9m_Cmax.tluplus"
+set layer_map_file$parasitic1 "$PDK_PATH/tech/star_rcxt/saed32nm_tf_itf_tluplus.map"
+set parasitic2 "p2"
+set tluplus_file$parasitic2 "$PDK_PATH/tech/star_rcxt/saed32nm_1p9m_Cmin.tluplus"
+set layer_map_file$parasitic2 "$PDK_PATH/tech/star_rcxt/saed32nm_tf_itf_tluplus.map"
+read_parasitic_tech -tlup $tluplus_filep1 -layermap $layer_map_filep1 -name p1
+read_parasitic_tech -tlup $tluplus_filep2 -layermap $layer_map_filep2 -name p2
+set_parasitic_parameters -late_spec $parasitic1 -early_spec $parasitic2
+set_app_options -name place.coarse.continue_on_missing_scandef -value true
+place_pins -self
+place_opt
+config_flow
+redirect $::sh_dev_null { set_app_options -name opt.internal.current_block_utilization -value [report_utilization] }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+legalize_placement
+#####################################################
+#pre-clock sanity checks
+####################################################
+check_design -checks pre_clock_tree_stage
+suppress_message -force CMD-013
+redirect -file /dev/null { set previous_unified_check_report_format_enable [get_app_option_value -name da.common.unified_check_report_format] }
+redirect -file /dev/null { set_app_options -name da.common.unified_check_report_format -value false }
+suppress_message -force CMD-013
+suppress_message -force CMD-013; report_design_mismatch -check_design >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02050354.log
+suppress_message -force CMD-013; check_scan_chain >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02050354.log
+suppress_message -force CMD-013; check_mv_design >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02050354.log
+suppress_message -force CMD-013; check_legality >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02050354.log
+suppress_message -force CMD-013; check_timing >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02050354.log
+suppress_message -force CMD-013; check_clock_trees >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02050354.log
+suppress_message -force CMD-013; check_hier_design -stage pre_clock_tree >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02050354.log
+unsuppress_message CMD-013
+redirect -file /dev/null { set_app_options -name da.common.unified_check_report_format -value $previous_unified_check_report_format_enable }
+###################################################
+##        CTS using CCD  commands
+####################################################
+##
+##stage 1:
+##
+synthesize_clock_tree
+route_group -all_clock_nets -reuse_existing_global_route true -stop_after_global_route true
+##stage 2:
+#
+set_app_options -name cts.optimize.enable_local_skew -value true
+set_app_options -name cts.compile.enable_local_skew -value true
+set_app_options -name cts.compile.enable_global_route -value false
+set_app_options -name clock_opt.flow.enable_ccd -value true
+clock_opt -to build_clock
+config_flow
+config_flow -stage cfinal_opto_prelude
+route_group -all_clock_nets -reuse_existing_global_route true -stop_after_global_route true
+
+route_group -all_clock_nets -reuse_existing_global_route true -stop_after_global_route true
+redirect $::sh_dev_null { set_app_options -name opt.internal.current_block_utilization -value [report_utilization] }
+
+#stage 3:
+###
+#
+clock_opt -from route_clock -to route_clock
+config_flow
+config_flow -stage cfinal_opto_prelude
+set_app_options -as_user_default -list {route.global.global_route_topology_style 1}
+route_group -all_clock_nets -reuse_existing_global_route true
+set_app_options -as_user_default -list {route.global.global_route_topology_style 0}
+clock_opt
+config_flow
+config_flow -stage cfinal_opto_prelude
+route_group -all_clock_nets -reuse_existing_global_route true -stop_after_global_route true
+
+route_group -all_clock_nets -reuse_existing_global_route true -stop_after_global_route true
+redirect $::sh_dev_null { set_app_options -name opt.internal.current_block_utilization -value [report_utilization] }
+
+set_app_options -as_user_default -list {route.global.global_route_topology_style 1}
+route_group -all_clock_nets -reuse_existing_global_route true
+set_app_options -as_user_default -list {route.global.global_route_topology_style 0}
+
+
+redirect $::sh_dev_null { set_app_options -name opt.internal.current_block_utilization -value [report_utilization] }
+
+
+
+
+
+create_routing_rule _snps_autoNdr_power -spacings {M1 {0.100000} M2 {0.112000} M3 {0.112000} M4 {0.112000} M5 {0.112000} M6 {0.112000} M7 {0.112000} M8 {0.112000} M9 {0.320000} MRDL {4.000000} }  -spacing_weight_levels {M1 { medium } M2 { medium } M3 { medium } M4 { medium } M5 { medium } M6 { medium } M7 { medium } M8 { medium } M9 { medium } MRDL { medium } } -spacing_length_thresholds {M1 { 1.0 } M2 { 1.0 } M3 { 1.0 } M4 { 1.0 } M5 { 1.0 } M6 { 1.0 } M7 { 1.0 } M8 { 1.0 } M9 { 1.0 } MRDL { 1.0 } }
+remove_routing_rules _snps_autoNdr_power
+###########################################################
+###  to report qor the respective CTS
+############################################################
+#
+#report_clock_qor
+#report_clock_qor -largest 2 -show_verbose_paths
+#report_clock_qor -largest 2 -show_verbose_paths > cts_ccd.rpt
+##########################################################
+#  to save the block
+########################################################
+report_timing
+#######################################################
+# set app options
+#########################################################
+#
+#global route
+set_app_options -name route.global.timing_driven -value true
+set_app_options -name route.global.crosstalk_driven -value false
+#track assignment
+set_app_options -name route.track.timing_driven -value true
+set_app_options -name route.track.crosstalk_driven -value true
+#
+#detail route
+set_app_options -name route.detail.timing_driven -value true
+set_app_options -name route.detail.save_after_iterations -value false
+set_app_options -name route.detail.force_max_number_iterations -value false
+set_app_options -name route.detail.antenna -value true
+set_app_options -name route.detail.antenna_fixing_preference -value use_diodes
+set_app_options -name route.detail.diode_libcell_names -value */ANTENNA_RVT
+#
+####################################
+#Atomic commands for route_auto
+###################################
+route_global
+#save_block route_global_database
+route_track
+#save_block route_track_database
+route_detail
+#save_block route_detail_database
+#route_auto
+#
+#
+#
+route_opt
+config_flow
+config_flow -stage cfinal_opto_prelude
+######################################
+# OUTPUTS
+#
+#
+write_verilog ./results/pri_enc.routed.v
+write_sdc -output ./results/pri_enc.routed.sdc
+write_parasitics -format spef -output ./results/pri_enc_${scenario1}.spef
+#
+report_timing
+close_lib
+set_working_design_stack ysh_LIBB11:full_adder_cts_CCD.design
+set_working_design_stack ysh_LIBB:pri_enc.design
+close_lib
+open_block /home/student/RTL2GDSII/ICCII/ysh_LIBB11:pri_enc.design
+link_block
+open_block /home/student/RTL2GDSII/ICCII/ysh_LIBB11:no_ADD.design
+link_block
+#######################################################################################
+## Power-planning - To build Power Delivery Network (PDN)
+## #####################################################################################
+#
+############################################################################
+### Step 1: to_create power/ground nets and to_connect power/ground nets :-
+##############################################################################
+#to create power nets
+create_net -power {VDD}
+create_net -ground {VSS}
+## to connect power/ground_nets
+#
+connect_pg_net -all_blocks -automatic
+#################################################################################
+### step 2: to create power and ground ring patterns
+#################################################################################
+###
+#scenario1:
+create_pg_ring_pattern core_ring_pattern -horizontal_layer M7 -horizontal_width .4 -horizontal_spacing .3 -vertical_layer M8 -vertical_width .4 -vertical_spacing .3
+set_pg_strategy core_power_ring -core -pattern {{name : core_ring_pattern}{nets : {VDD VSS}}{offset : {.5 .5}}}
+compile_pg -strategies core_power_ring
+###############################################################################
+### step 3: to create pg mesh pattern
+################################################################################
+create_pg_mesh_pattern mesh -layers { {{vertical_layer: M6}{width: .34} {spacing: interleaving}{pitch: 5} {offset: .5}} {{horizontal_layer: M7}{width: .38} {spacing: interleaving} {pitch: 5} {offset: .5}} {{vertical_layer: M8}{width: .38} {spacing: interleaving}{pitch: 5} {offset: .5}}}
+set_pg_strategy core_mesh -pattern { {pattern:mesh} {nets: VDD VSS}} -core -extension {stop: innermost_ring}
+#set_pg_strategy core_mesh -pattern { {pattern:mesh} {nets: VDD VSS}} -core -extension {{{side: 1 2} {direction: L T} {stop: innermost_ring}}}
+compile_pg -strategies core_mesh
+###################################################
+###step 4 : to create std cell power rail pattern
+#######################################################
+create_pg_std_cell_conn_pattern std_cell_rail -layers {M1} -rail_width 0.06
+set_pg_strategy rail_strat -core -pattern {{name: std_cell_rail} {nets: VDD VSS} }
+compile_pg -strategies rail_strat
+#compile_pg
+##########################################################
+### step 5 : To save block and Save lib
+#############################################################
+## "save_block"  will save block as the deign name (full_adder.design) by default
+#
+save_block
+## "save_block -as <preferred name>" to save the block in user preferred name
+##
+## "save_lib" will save library as created already
+save_lib
+####mode for placement
+set mode1 "func"
+set corner1 "nom"
+set scenario1 "${mode1}::${corner1}"
+remove_modes -all; remove_corners -all; remove_scenarios -all
+create_mode $mode1
+create_corner $corner1
+create_scenario -name func::nom -mode func -corner nom
+current_mode func
+current_scenario func::nom
+source ./../CONSTRAINTS/pri_enc.sdc
+set_dont_use [get_lib_cells */FADD*]
+set_dont_use [get_lib_cells */HADD*]
+set_dont_use [get_lib_cells */AO*]
+#set_dont_use [get_lib_cells */OA*]
+#set_dont_use [get_lib_cells */NAND*]
+set_dont_use [get_lib_cells */XOR*]
+#set_dont_use [get_lib_cells */NOR*]
+set_dont_use [get_lib_cells */XNOR*]
+set_dont_use [get_lib_cells */MUX*]
+#set_dont_use [get_lib_cells */AND*]
+#set_dont_use [get_lib_cells */OR*]
+current_corner nom
+current_scenario func::nom
+set parasitic1 "p1"
+set tluplus_file$parasitic1 "$PDK_PATH/tech/star_rcxt/saed32nm_1p9m_Cmax.tluplus"
+set layer_map_file$parasitic1 "$PDK_PATH/tech/star_rcxt/saed32nm_tf_itf_tluplus.map"
+set parasitic2 "p2"
+set tluplus_file$parasitic2 "$PDK_PATH/tech/star_rcxt/saed32nm_1p9m_Cmin.tluplus"
+set layer_map_file$parasitic2 "$PDK_PATH/tech/star_rcxt/saed32nm_tf_itf_tluplus.map"
+read_parasitic_tech -tlup $tluplus_filep1 -layermap $layer_map_filep1 -name p1
+read_parasitic_tech -tlup $tluplus_filep2 -layermap $layer_map_filep2 -name p2
+set_parasitic_parameters -late_spec $parasitic1 -early_spec $parasitic2
+set_app_options -name place.coarse.continue_on_missing_scandef -value true
+place_pins -self
+place_opt
+config_flow
+redirect $::sh_dev_null { set_app_options -name opt.internal.current_block_utilization -value [report_utilization] }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+legalize_placement
+report_timing
+report_units
+report_qor
+#####################################################
+#pre-clock sanity checks
+####################################################
+check_design -checks pre_clock_tree_stage
+suppress_message -force CMD-013
+redirect -file /dev/null { set previous_unified_check_report_format_enable [get_app_option_value -name da.common.unified_check_report_format] }
+redirect -file /dev/null { set_app_options -name da.common.unified_check_report_format -value false }
+suppress_message -force CMD-013
+suppress_message -force CMD-013; report_design_mismatch -check_design >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02053030.log
+suppress_message -force CMD-013; check_scan_chain >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02053030.log
+suppress_message -force CMD-013; check_mv_design >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02053030.log
+suppress_message -force CMD-013; check_legality >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02053030.log
+suppress_message -force CMD-013; check_timing >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02053030.log
+suppress_message -force CMD-013; check_clock_trees >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02053030.log
+suppress_message -force CMD-013; check_hier_design -stage pre_clock_tree >> /home/student/RTL2GDSII/ICCII/check_design2025Jun02053030.log
+unsuppress_message CMD-013
+redirect -file /dev/null { set_app_options -name da.common.unified_check_report_format -value $previous_unified_check_report_format_enable }
+###################################################
+##        CTS using CCD  commands
+####################################################
+##
+##stage 1:
+##
+synthesize_clock_tree
+route_group -all_clock_nets -reuse_existing_global_route true -stop_after_global_route true
+##stage 2:
+#
+set_app_options -name cts.optimize.enable_local_skew -value true
+set_app_options -name cts.compile.enable_local_skew -value true
+set_app_options -name cts.compile.enable_global_route -value false
+set_app_options -name clock_opt.flow.enable_ccd -value true
+clock_opt -to build_clock
+config_flow
+config_flow -stage cfinal_opto_prelude
+route_group -all_clock_nets -reuse_existing_global_route true -stop_after_global_route true
+
+route_group -all_clock_nets -reuse_existing_global_route true -stop_after_global_route true
+redirect $::sh_dev_null { set_app_options -name opt.internal.current_block_utilization -value [report_utilization] }
+
+#stage 3:
+###
+#
+clock_opt -from route_clock -to route_clock
+config_flow
+config_flow -stage cfinal_opto_prelude
+set_app_options -as_user_default -list {route.global.global_route_topology_style 1}
+route_group -all_clock_nets -reuse_existing_global_route true
+set_app_options -as_user_default -list {route.global.global_route_topology_style 0}
+clock_opt
+config_flow
+config_flow -stage cfinal_opto_prelude
+route_group -all_clock_nets -reuse_existing_global_route true -stop_after_global_route true
+
+route_group -all_clock_nets -reuse_existing_global_route true -stop_after_global_route true
+redirect $::sh_dev_null { set_app_options -name opt.internal.current_block_utilization -value [report_utilization] }
+
+set_app_options -as_user_default -list {route.global.global_route_topology_style 1}
+route_group -all_clock_nets -reuse_existing_global_route true
+set_app_options -as_user_default -list {route.global.global_route_topology_style 0}
+
+
+redirect $::sh_dev_null { set_app_options -name opt.internal.current_block_utilization -value [report_utilization] }
+
+
+
+
+
+create_routing_rule _snps_autoNdr_power -spacings {M1 {0.100000} M2 {0.112000} M3 {0.112000} M4 {0.112000} M5 {0.112000} M6 {0.112000} M7 {0.112000} M8 {0.112000} M9 {0.320000} MRDL {4.000000} }  -spacing_weight_levels {M1 { medium } M2 { medium } M3 { medium } M4 { medium } M5 { medium } M6 { medium } M7 { medium } M8 { medium } M9 { medium } MRDL { medium } } -spacing_length_thresholds {M1 { 1.0 } M2 { 1.0 } M3 { 1.0 } M4 { 1.0 } M5 { 1.0 } M6 { 1.0 } M7 { 1.0 } M8 { 1.0 } M9 { 1.0 } MRDL { 1.0 } }
+remove_routing_rules _snps_autoNdr_power
+###########################################################
+###  to report qor the respective CTS
+############################################################
+#
+#report_clock_qor
+#report_clock_qor -largest 2 -show_verbose_paths
+#report_clock_qor -largest 2 -show_verbose_paths > cts_ccd.rpt
+##########################################################
+#  to save the block
+########################################################
+report_timng
+report_timing
+report_units
+report_qor
+#######################################################
+# set app options
+#########################################################
+#
+#global route
+set_app_options -name route.global.timing_driven -value true
+set_app_options -name route.global.crosstalk_driven -value false
+#track assignment
+set_app_options -name route.track.timing_driven -value true
+set_app_options -name route.track.crosstalk_driven -value true
+#
+#detail route
+set_app_options -name route.detail.timing_driven -value true
+set_app_options -name route.detail.save_after_iterations -value false
+set_app_options -name route.detail.force_max_number_iterations -value false
+set_app_options -name route.detail.antenna -value true
+set_app_options -name route.detail.antenna_fixing_preference -value use_diodes
+set_app_options -name route.detail.diode_libcell_names -value */ANTENNA_RVT
+#
+####################################
+#Atomic commands for route_auto
+###################################
+route_global
+#save_block route_global_database
+route_track
+#save_block route_track_database
+route_detail
+#save_block route_detail_database
+#route_auto
+#
+#
+#
+route_opt
+config_flow
+config_flow -stage cfinal_opto_prelude
+######################################
+# OUTPUTS
+#
+#
+write_verilog ./results/pri_enc.routed.v
+write_sdc -output ./results/pri_enc.routed.sdc
+write_parasitics -format spef -output ./results/pri_enc_${scenario1}.spef
+report_timing
+report_units
+report_qor
+report_units
+report_qor
+set_working_design_stack ysh_LIBB11:pri_enc.design
